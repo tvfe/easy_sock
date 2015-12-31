@@ -4,14 +4,16 @@
   "description": "A easy and foolish way to develop a socket module, which is easy to use as well.",
   "main": "index.js",
   "scripts": {
-    "test": "node test.js"
+    "test": "make test"
   },
   "keywords": [
     "socket"
   ],
-  "author": {
-    "name": "vicyao"
-  },
-  "license": "ISC",
-  "readme": "README.md",
+  "repository": "https://github.com/ysbcc/easy_sock.git",
+  "author": "vicyao <vicysb@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "mocha": "^2.3.4",
+    "should": "^8.0.2"
+  }
 }
