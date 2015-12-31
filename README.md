@@ -167,3 +167,11 @@ client.write({
 `close` 当 socket 关闭时
 
 `idle` 当 socket 一直闲置时
+
+## development
+
+1. git clone this project
+
+2. `$ npm install`
+
+3. make test

@@ -10,6 +10,49 @@ var PORT = 3000;
 var jsonstringify = JSON.stringify.bind(JSON)
 var jsonparse = JSON.parse.bind(JSON)
 
+function createServer(onData) {
+  onData = onData || function (socket) {
+      return function (data) {
+        socket.write(data)
+      }
+    }
+
+  socketServer = net.createServer(function (socket) {
+    serverSockets.push(socket)
+    socket.on('data', onData(socket))
+  })
+  socketServer.listen(PORT)
+
+  return socketServer;
+}
+
+function createEasySocket(_options) {
+  var options = {
+    ip: HOST,
+    port: PORT,
+  };
+
+  for (var k in _options) {
+    options[k] = _options[k]
+  }
+  var socket = new EasySock(options)
+
+  socket.isReceiveComplete = function (packet) {
+    return packet.length
+  }
+  socket.encode = function (data, seq) {
+    data.seq = seq
+    return new Buffer(jsonstringify(data))
+  }
+  socket.decode = function (data) {
+    data = jsonparse(String(data))
+    data.result = data.userid
+    return data
+  }
+
+  return socket
+}
+
 describe('test/lib/easy_sock.test.js', function () {
   beforeEach(function () {
     socketServer = null;
@@ -17,10 +60,10 @@ describe('test/lib/easy_sock.test.js', function () {
   })
   afterEach(function (done) {
     if (socketServer) {
-      socketServer.close(done)
       serverSockets.forEach(function (socket) {
         socket.end()
       })
+      socketServer.close(done)
     } else {
       done()
     }
@@ -32,31 +75,10 @@ describe('test/lib/easy_sock.test.js', function () {
   })
 
   it('should work with one packet', function (done) {
-    socketServer = net.createServer(function (socket) {
-      serverSockets.push(socket)
-      socket.on('data', function (data) {
-        socket.write(data)
-      })
-    })
-    socketServer.listen(PORT)
 
-    var socket = new EasySock({
-      ip: HOST,
-      port: PORT,
-    })
+    createServer()
 
-    socket.isReceiveComplete = function (packet) {
-      return packet.length
-    }
-    socket.encode = function (data, seq) {
-      data.seq = seq
-      return new Buffer(jsonstringify(data))
-    }
-    socket.decode = function (data) {
-      data = jsonparse(String(data))
-      data.result = data.userid
-      return data
-    }
+    var socket = createEasySocket()
 
     socket.write({
       userid: 11
@@ -71,18 +93,9 @@ describe('test/lib/easy_sock.test.js', function () {
   it('should work with multi packets', function (done) {
     done = pedding(done, 3)
 
-    socketServer = net.createServer(function (socket) {
-      serverSockets.push(socket)
-      socket.on('data', function (data) {
-        socket.write(data) // 三份数据都在一次 data 事件里面，因为客户端那边缓存了
-      })
-    })
-    socketServer.listen(PORT)
+    createServer()
 
-    var socket = new EasySock({
-      ip: HOST,
-      port: PORT,
-    })
+    var socket = createEasySocket()
 
     var onePacketLength;
     socket.isReceiveComplete = function (packet) {
@@ -93,11 +106,6 @@ describe('test/lib/easy_sock.test.js', function () {
       var buf = new Buffer(jsonstringify(data))
       onePacketLength = buf.length
       return buf
-    }
-    socket.decode = function (data) {
-      data = jsonparse(String(data))
-      data.result = data.userid
-      return data
     }
 
     socket.write({
@@ -129,33 +137,110 @@ describe('test/lib/easy_sock.test.js', function () {
   })
 
   it('should error when connect timeout', function (done) {
-    var socket = new EasySock({
-      ip: '8.8.8.8',
-      port: PORT,
+    var socket = createEasySocket({
+      ip: '1.1.1.1',
       timeout: 100
     })
-
-    socket.isReceiveComplete = function (packet) {
-      return packet.length
-    }
-    socket.encode = function (data, seq) {
-      data.seq = seq
-      return new Buffer(jsonstringify(data))
-    }
-    socket.decode = function (data) {
-      data = jsonparse(String(data))
-      data.result = data.userid
-      return data
-    }
 
     socket.write({
       userid: 11
     }, function (err, data) {
       err.message.should.eql('easy_sock:TCP connect timeout(300ms)')
+      socket.timers.connect._called.should.true()
+      setImmediate(function () {
+        socket.taskQueue.should.length(0)
+        done()
+      })
+    })
+    socket.taskQueue.should.length(1)
+  })
 
+  it('should error when write timeout', function (done) {
+
+    createServer(function (socket) {
+      return function (data) {
+        // do nothing
+      }
+    })
+
+    var socket = createEasySocket({
+      timeout: 100
+    })
+
+    socket.write({
+      userid: 11
+    }, function (err, data) {
+      err.message.should.eql('request timeout(100ms)')
       done()
     })
   })
 
+  it('should not call connect timeout timer when unknown error occurs', function (done) {
+    var socket = createEasySocket({
+      ip: '1.1.1.1'
+    })
 
+    socket.timers.connect._idleTimeout.should.above(-1)
+
+    socket.restore = function () {}
+    socket.close()
+
+    setImmediate(function () {
+      socket.timers.connect._idleTimeout.should.eql(-1)
+      done()
+    })
+  })
+
+  it('should not call write timeout timer when unknown error occurs', function (done) {
+    createServer(function (socket) {
+      return function (data) {
+
+      }
+    })
+
+    var socket = createEasySocket()
+
+    socket.write({
+      userid: 11
+    }, function (err, data) {
+    })
+
+    setTimeout(function () {
+      socket.timers.writes[2]._idleTimeout.should.above(-1)
+
+      setTimeout(function () {
+        socket.restore = function () {}
+        socket.close()
+
+        setTimeout(function () {
+          socket.timers.writes[2]._idleTimeout.should.eql(-1)
+          done()
+        }, 10)
+      }, 100)
+    }, 100)
+
+  })
+
+  it('should close socket when idle, and recreate when write', function (done) {
+    done = pedding(done, 2);
+
+    createServer()
+
+    var socket = createEasySocket({
+      idleTimeout: 200
+    })
+
+    socket.once('close', function () {
+      done()
+    })
+
+    setTimeout(function () {
+      socket.write({
+        userid: 11,
+      }, function (err, data) {
+        data.should.eql(11)
+        done()
+      })
+    }, 300)
+  })
 })
