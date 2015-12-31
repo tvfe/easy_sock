@@ -53,6 +53,10 @@ function createEasySocket(_options) {
   return socket
 }
 
+function shouldNotBeHere() {
+  throw new Error('should not be here')
+}
+
 describe('test/lib/easy_sock.test.js', function () {
   beforeEach(function () {
     socketServer = null;
@@ -88,6 +92,38 @@ describe('test/lib/easy_sock.test.js', function () {
       data.should.eql(11)
       done()
     })
+  })
+
+  it('should work with one packet and not call one task twice', function (done) {
+
+    createServer(function (socket) {
+      return function (data) {
+        data = jsonparse(data)
+        data.seq = 2;
+        data = new Buffer(jsonstringify(data))
+        socket.write(data)
+      }
+    })
+
+    var socket = createEasySocket()
+
+    socket.write({
+      userid: 11
+    }, function (err, data) {
+      (!!err).should.false();
+
+      data.should.eql(11)
+
+      socket.write({
+        userid: 12
+      }, function (err, data) {
+        shouldNotBeHere()
+      })
+    })
+
+    setTimeout(function () {
+      done()
+    }, 200)
   })
 
   it('should work with multi packets', function (done) {
@@ -206,14 +242,14 @@ describe('test/lib/easy_sock.test.js', function () {
     })
 
     setTimeout(function () {
-      socket.timers.writes[2]._idleTimeout.should.above(-1)
+      socket.timers.writes[1]._idleTimeout.should.above(-1)
 
       setTimeout(function () {
         socket.restore = function () {}
         socket.close()
 
         setTimeout(function () {
-          socket.timers.writes[2]._idleTimeout.should.eql(-1)
+          socket.timers.writes[1]._idleTimeout.should.eql(-1)
           done()
         }, 10)
       }, 100)
@@ -242,5 +278,53 @@ describe('test/lib/easy_sock.test.js', function () {
         done()
       })
     }, 300)
+  })
+
+  it('should error when no ip or port', function () {
+    try{
+      new EasySock({})
+    } catch (e) {
+      e.message.should.eql('needs config info: ip, port')
+    }
+  })
+
+  it('should log error when decode not return seq or result', function (done) {
+    createServer()
+
+    var socket = createEasySocket()
+
+    socket.decode = function () {
+      return ({hehe: '呵呵'})
+    }
+
+    socket.write({
+      userid: 11,
+    }, function (err, data) {
+      throw new Error('should not be here')
+    })
+
+    setTimeout(function () {
+      done()
+    }, 500)
+  })
+
+  it('should log error when decode return wrong req', function (done) {
+    createServer()
+
+    var socket = createEasySocket()
+
+    socket.decode = function () {
+      return ({req: -1})
+    }
+
+    socket.write({
+      userid: 11,
+    }, function (err, data) {
+      throw new Error('should not be here')
+    })
+
+    setTimeout(function () {
+      done()
+    }, 500)
   })
 })
