@@ -151,3 +151,19 @@ client.write({
 ```
 
 目前easy_sock已经接入protobuf、jce、以及cmem等协议。如有任何意见欢迎交流 vicyao#tencent.com
+
+## 事件
+
+`write_timeout` 当 write 数据超时
+
+`connect_timeout` 当初始化 socket 超时
+
+`connect` 当 socket 连接成功时
+
+`data` 当接收到数据时
+
+`error` 当错误发生时
+
+`close` 当 socket 关闭时
+
+`idle` 当 socket 一直闲置时
