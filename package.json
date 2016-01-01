@@ -13,6 +13,7 @@
   "author": "vicyao <vicysb@gmail.com>",
   "license": "MIT",
   "devDependencies": {
+    "matcha": "^0.6.1",
     "memwatch-next": "^0.2.10",
     "mocha": "^2.3.4",
     "pedding": "^1.0.0",

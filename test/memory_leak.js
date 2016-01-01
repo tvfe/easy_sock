@@ -19,7 +19,7 @@ for (var i = 0; i < 10000; i++) {
   socket.write({
     haha: 11
   }, function (err, data) {
-    
+
   })
 
   arr.push(socket)

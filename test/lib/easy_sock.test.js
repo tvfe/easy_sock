@@ -38,14 +38,14 @@ function createEasySocket(_options) {
   var socket = new EasySock(options)
 
   socket.isReceiveComplete = function (packet) {
-    return packet.length
+    return packet.indexOf('}') + 1
   }
   socket.encode = function (data, seq) {
     data.seq = seq
     return new Buffer(jsonstringify(data))
   }
   socket.decode = function (data) {
-    data = jsonparse(String(data))
+    data = jsonparse(data)
     data.result = data.userid
     return data
   }
@@ -132,17 +132,6 @@ describe('test/lib/easy_sock.test.js', function () {
     createServer()
 
     var socket = createEasySocket()
-
-    var onePacketLength;
-    socket.isReceiveComplete = function (packet) {
-      return onePacketLength
-    }
-    socket.encode = function (data, seq) {
-      data.seq = seq
-      var buf = new Buffer(jsonstringify(data))
-      onePacketLength = buf.length
-      return buf
-    }
 
     socket.write({
       userid: 11
