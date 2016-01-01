@@ -288,6 +288,33 @@ describe('test/lib/easy_sock.test.js', function () {
     }
   })
 
+  it('should not close socket when idle and keepAlive', function (done) {
+    createServer()
+
+    var socket = createEasySocket({
+      //idleTimeout: 200,
+      keepAlive: true,
+    })
+
+    var closeCount = 0;
+    socket.on('close', function () {
+      closeCount++;
+      closeCount.should.not.eql(2)
+    })
+
+    setTimeout(function () {
+      done()
+    }, 300)
+  })
+
+  it('should error when no ip or port', function () {
+    try{
+      new EasySock({})
+    } catch (e) {
+      e.message.should.eql('needs config info: ip, port')
+    }
+  })
+
   it('should log error when decode not return seq or result', function (done) {
     createServer()
 
@@ -321,6 +348,10 @@ describe('test/lib/easy_sock.test.js', function () {
       userid: 11,
     }, function (err, data) {
       throw new Error('should not be here')
+    })
+
+    socket.on('error', function (e) {
+      e.message.should.eql('decode buffer error: { req: -1 }')
     })
 
     setTimeout(function () {
