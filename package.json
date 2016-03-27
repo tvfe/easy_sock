@@ -1,7 +1,7 @@
 {
   "name": "easy_sock",
-  "version": "0.2.0",
-  "description": "A easy and foolish way to develop a socket module, which is easy to use as well.",
+  "version": "0.4.0",
+  "description": "A easy and foolish way to develop a socket module, which is easy to use as well. Now support both TCP and UDP.",
   "main": "index.js",
   "scripts": {
     "test": "make test"
@@ -20,6 +20,7 @@
     "should": "^8.0.2"
   },
   "dependencies": {
-    "custom-error": "^0.2.1"
+    "custom-error": "^0.2.1",
+    "debug": "^2.2.0"
   }
 }
